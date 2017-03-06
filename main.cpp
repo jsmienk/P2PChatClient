@@ -1,6 +1,6 @@
 #include <iostream>
 
-#include "P2PClient.h"
+#include "P2PRouter.h"
 
 using namespace std;
 

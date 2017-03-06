@@ -2,8 +2,8 @@
 // Created by Jeroen Smienk on 02-03-17.
 //
 
-#ifndef LORAP2PNETWORK_P2PCLIENT_H
-#define LORAP2PNETWORK_P2PCLIENT_H
+#ifndef LORAP2PNETWORK_P2PROUTER_H
+#define LORAP2PNETWORK_P2PROUTER_H
 
 #ifdef __WIN32__
 
@@ -20,7 +20,7 @@
 
 #include <string>
 
-class P2PClient {
+class P2PRouter {
 private:
     int sock;
     std::string address;
@@ -28,7 +28,7 @@ private:
     struct sockaddr_in server;
 
 public:
-    P2PClient();
+    P2PRouter();
 
     bool conn(std::string address, int port);
 
@@ -39,4 +39,4 @@ public:
     std::string receive(int);
 };
 
-#endif //LORAP2PNETWORK_P2PCLIENT_H
+#endif //LORAP2PNETWORK_P2PROUTER_H
