@@ -12,27 +12,38 @@
 #else
 
 #include <sys/socket.h>
+#include <arpa/inet.h>
 
 #endif
 
-#include <arpa/inet.h>
 #include <netdb.h>
 
 #include <string>
+#include <map>
+#include "Node.h"
 
 class P2PRouter {
-private:
+
+    // table with every node known
+    std::map<std::string, Node> routing_table;
+
+    // socket
     int sock;
+
+    // Bottom two are IP dependent. Will change when we use LoRa
+    // my address
     std::string address;
+    // the port we chose to operate on
     int port;
-    struct sockaddr_in server;
 
 public:
     P2PRouter();
 
+    void die(char *s);
+
     bool conn(std::string address, int port);
 
-    bool sendData(std::string data);
+    bool sendData(std::string data, in_addr addr);
 
     bool broadcast(std::string data);
 
