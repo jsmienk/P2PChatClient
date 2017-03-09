@@ -29,14 +29,14 @@ class Node
 public:
     Node();
 
-    inline in_addr getAddress()
+    inline in_addr get_address()
     {
         return addr;
     };
 
     bool send();
 
-    inline std::string getNickname()
+    inline std::string get_nickname()
     {
         return nickname;
     };

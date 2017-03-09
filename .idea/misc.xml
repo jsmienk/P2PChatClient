@@ -4,6 +4,7 @@
   <component name="CidrRootsConfiguration">
     <sourceRoots>
       <file path="$PROJECT_DIR$/cryptopp565" />
+      <file path="$PROJECT_DIR$/rapidjson" />
     </sourceRoots>
   </component>
 </project>

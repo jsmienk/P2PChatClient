@@ -6,9 +6,14 @@ file(GLOB crypto_SRC
         "cryptopp565/*.cpp"
         )
 
+file(GLOB rapidjson_SRC
+        "rapidjson/*.h"
+        "rapidjson/*.cpp"
+        )
+
 set(CMAKE_CXX_STANDARD 11)
 
-set(SOURCE_FILES main.cpp Node.cpp Node.h P2PRouter.cpp P2PRouter.h ${crypto_SRC})
+set(SOURCE_FILES main.cpp Node.cpp Node.h P2PRouter.cpp P2PRouter.h ${crypto_SRC} ${rapidjson_SRC})
 add_executable(LoRaP2PNetwork ${SOURCE_FILES})
 
 if(WIN32)

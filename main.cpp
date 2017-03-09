@@ -10,11 +10,16 @@
 #include <thread>
 #include <ifaddrs.h>
 
+#include "rapidjson/document.h"
+#include "rapidjson/writer.h"
+#include "rapidjson/stringbuffer.h"
+
 #ifdef __WIN32__
 #include <winsock2.h>
 #else
 
 #include <sys/socket.h>
+
 #endif
 
 // port name == LoRa
@@ -24,6 +29,7 @@
 
 // pre-declarations
 static std::string get_network_interface_address();
+
 static void display_error(const char *on_what);
 
 int sock;                       // socket
@@ -34,13 +40,15 @@ int data_size;
 
 std::string address = get_network_interface_address();
 std::string address_broadcast;
+std::string last_send_message;
 
 void receiving()
 {
     std::cout << "Receive thread started." << std::endl;
 
     // Wait for incoming messages
-    // 2 types:
+    // 3 types:
+    //  - Response on initial broadcast
     //  - New node in the network
     //  - Onion we have to redirect
     char buffer[BLEN];              // receive buffer
@@ -59,15 +67,24 @@ void receiving()
             display_error("recvfrom(2)");
         }
 
-        std::cout << "Sender address: " << inet_ntoa(socket_them.sin_addr) << std::endl;
-        // Check if the sender is not us
-//        if (socket_them.sin_addr.s_addr)
-//        {
-//
-//        }
+        std::string received = buffer;
 
+        // If the received message is not ours
+//        if (received != last_send_message)
+//        {
         // Print what we got
-        std::cout << "Received: " << buffer << std::endl;
+        std::cout << "Received: " << received << std::endl;
+
+        rapidjson::Document json;
+        json.Parse(received.c_str());
+
+        // Check if parse succeeded
+        char json_buffer[sizeof(received.c_str())];
+        memcpy(json_buffer, received.c_str(), received.size());
+        if (json.ParseInsitu(json_buffer).HasParseError())
+        {
+            display_error("JSON could not be parsed!");
+        }
 
 //
 //        /*
@@ -86,6 +103,7 @@ void receiving()
 //        {
 //            display_error("sendto(2)");
 //        }
+//        }
     }
 #pragma clang diagnostic pop
 }
@@ -94,16 +112,16 @@ void sending()
 {
     std::cout << "Send thread started." << std::endl;
 
-    std::string console_input;
-
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wmissing-noreturn"
     for (;;)
     {
+        std::string console_input;
         getline(std::cin, console_input);
         data_size = (int) sendto(sock, console_input.c_str(), console_input.size(), 0,
                                  (struct sockaddr *) &socket_them,
                                  sizeof(socket_them));
+        last_send_message = console_input;
     }
 #pragma clang diagnostic pop
 }
@@ -156,9 +174,11 @@ int main(int argc, char **argv)
     }
 
     // Broadcast my IP, Kp and request other IPs and Kps (and nickname if client)
-    std::string broadcast_message = "Hallo!";
-    data_size = (int) sendto(sock, broadcast_message.c_str(), broadcast_message.size(), 0, (struct sockaddr *) &socket_them,
+    std::string broadcast_message = "{\"hello\":3}";
+    data_size = (int) sendto(sock, broadcast_message.c_str(), broadcast_message.size(), 0,
+                             (struct sockaddr *) &socket_them,
                              sizeof(socket_them));
+    last_send_message = broadcast_message;
 
     // Start the thread that will receive messages
     std::thread thread_receive(receiving);
