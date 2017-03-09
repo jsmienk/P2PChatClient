@@ -15,13 +15,13 @@
 #else
 
 #include <sys/socket.h>
+#include <ifaddrs.h>
 
 #endif
 
 // port name == LoRa
 #define PORT 5672
 #define BLEN 512
-#define SUBNET "145.76.241"
 #define MASK "255"
 
 /**
@@ -34,7 +34,53 @@ static void display_error(const char *on_what)
     fputs(": ", stderr);
     fputs(on_what, stderr);
     fputc('\n', stderr);
-    exit(1);
+    throw std::exception();
+}
+
+/**
+ * Get a IPv4 network interface address
+ * @return address or nullptr
+ */
+static std::string get_network_interface_address()
+{
+    struct ifaddrs *ifAddrStruct = NULL;
+    struct ifaddrs *ifa = NULL;
+    void *tmpAddrPtr = NULL;
+
+    getifaddrs(&ifAddrStruct);
+
+    for (ifa = ifAddrStruct; ifa != NULL; ifa = ifa->ifa_next)
+    {
+        if (!ifa->ifa_addr)
+        {
+            continue;
+        }
+
+        // Check if it is IPv4
+        if (ifa->ifa_addr->sa_family == AF_INET)
+        {
+            tmpAddrPtr = &((struct sockaddr_in *) ifa->ifa_addr)->sin_addr;
+            char addressBuffer[INET_ADDRSTRLEN];
+            inet_ntop(AF_INET, tmpAddrPtr, addressBuffer, INET_ADDRSTRLEN);
+
+            std::cout << "Valid IPv4 network interface address found: " << addressBuffer << std::endl;
+
+//            std::string address_type = "en0";
+//            if (ifa->ifa_name == address_type.c_str())
+//            {
+//                return addressBuffer;
+//            }
+
+            // If it is not the localhost
+            if (std::strncmp(addressBuffer, "127.0.0.1", sizeof(addressBuffer)) != 0)
+            {
+                return addressBuffer;
+            }
+        }
+    }
+    if (ifAddrStruct != NULL) freeifaddrs(ifAddrStruct);
+
+    return nullptr;
 }
 
 int sock;                       // socket
@@ -42,8 +88,13 @@ struct sockaddr_in socket_me;   // our socket address
 struct sockaddr_in socket_them; // the socket address for the sender
 int data_size;
 
+std::string address = get_network_interface_address();
+std::string address_broadcast;
+
 void receiving()
 {
+    std::cout << "Receive thread started." << std::endl;
+
     // Wait for incoming messages
     // 2 types:
     //  - New node in the network
@@ -63,27 +114,6 @@ void receiving()
         // Print what we got
         std::cout << "Received: " << buffer << std::endl;
 
-//        // Process
-//        buffer[data_size] = 0; // null terminate
-//        if (!strcasecmp(buffer, "QUIT"))
-//        {
-//            break;
-//        }
-//
-//        /*
-//         * Get the current date and time:
-//         */
-//        time(&time_date_current);            // Get current time & date
-//        tm = *localtime(&time_date_current); // Get components
-//
-//        /*
-//         * Format a new date and time string,
-//         * based upon the input format string:
-//         */
-//        strftime(time_date_result,         // Formatted result
-//                 sizeof(time_date_result), // Max result size
-//                 buffer,                   // Input date/time format
-//                 &tm);                     // Input date/time values
 //
 //        /*
 //         * Send the formatted result back to the
@@ -106,6 +136,8 @@ void receiving()
 
 void sending()
 {
+    std::cout << "Send thread started." << std::endl;
+
     for (int i = 0; i < 100; i++)
     {
         data_size = (int) sendto(sock, std::to_string(i).c_str(), sizeof(i), 0, (struct sockaddr *) &socket_them,
@@ -139,10 +171,25 @@ int main(int argc, char **argv)
     // Broadcast socket
     socket_them.sin_family = AF_INET;
     socket_them.sin_port = htons(PORT);
-    socket_them.sin_addr.s_addr = inet_addr("127.0.0.1");//SUBNET "." MASK);
+
+    std::size_t last_point_pos = address.rfind(".");
+    address_broadcast = address.substr(0, last_point_pos + 1) + MASK;
+    std::cout << "Broadcast address formed: " << address_broadcast << std::endl;
+
+    socket_them.sin_addr.s_addr = inet_addr(address_broadcast.c_str());
     if (socket_them.sin_addr.s_addr == INADDR_NONE)
     {
         display_error("bad address");
+    }
+
+    // Allow broadcasts
+    if ((data_size = setsockopt(sock,
+                                SOL_SOCKET,
+                                SO_BROADCAST,
+                                &socket_them,
+                                sizeof(socket_them))) == -1)
+    {
+        display_error("setsockopt(SO_BROADCAST)");
     }
 
     // Broadcast my IP, Kp and request other IPs and Kps (and nickname if client)
@@ -156,14 +203,11 @@ int main(int argc, char **argv)
     std::thread thread_send(sending);
 
     thread_receive.join();
-    std::cout << "Receive thread started." << std::endl;
     thread_send.join();
-    std::cout << "Send thread started." << std::endl;
 
     // TEST BROADCAST "Hallo!"
     data_size = (int) sendto(sock, broadcast_message, sizeof(broadcast_message), 0, (struct sockaddr *) &socket_them,
                              sizeof(socket_them));
-    std::cout << "TETS BROADCAST SEND" << std::endl;
 
     // Close the socket and exit
     close(sock);
