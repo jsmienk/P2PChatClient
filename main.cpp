@@ -3,7 +3,6 @@
 #include <stdlib.h>
 #include <errno.h>
 #include <string.h>
-#include <time.h>
 #include <sys/types.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
@@ -39,7 +38,6 @@ static void display_error(const char *on_what)
 
 int sock;                       // socket
 struct sockaddr_in socket_me;   // our socket address
-int socket_length;              // length
 struct sockaddr_in socket_them; // the socket address for the sender
 int data_size;
 
@@ -50,15 +48,9 @@ void receiving()
     //  - New node in the network
     //  - Onion we have to redirect
     char buffer[BLEN];              // receive buffer
-    char time_date_result[BLEN];    // date/time Result
-    time_t time_date_current;       // current time and date
-    struct tm tm;                   // date time values
 
     for (;;)
     {
-        // Socket length of their socket on send and receive
-        socket_length = sizeof(socket_them);
-
         // Receive anything
         data_size = (int) recv(sock, buffer, BLEN, 0);
         // If we received something
