@@ -18,6 +18,7 @@
 
 #endif
 
+// port name == LoRa
 #define PORT 5672
 #define BLEN 512
 #define SUBNET "145.76.241"
@@ -135,7 +136,7 @@ int main(int argc, char **argv)
     }
     std::cout << "Socket bound." << std::endl;
 
-    // Broadcast my IP, Kp and request other IPs and Kps (and nickname if client)
+    // Broadcast socket
     socket_them.sin_family = AF_INET;
     socket_them.sin_port = htons(PORT);
     socket_them.sin_addr.s_addr = inet_addr("127.0.0.1");//SUBNET "." MASK);
@@ -144,6 +145,7 @@ int main(int argc, char **argv)
         display_error("bad address");
     }
 
+    // Broadcast my IP, Kp and request other IPs and Kps (and nickname if client)
     char *broadcast_message = (char *) "Hallo!";
     data_size = (int) sendto(sock, broadcast_message, sizeof(broadcast_message), 0, (struct sockaddr *) &socket_them,
                              sizeof(socket_them));

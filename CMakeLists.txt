@@ -10,3 +10,7 @@ set(CMAKE_CXX_STANDARD 11)
 
 set(SOURCE_FILES main.cpp P2PRouter.cpp P2PRouter.h ${crypto_SRC})
 add_executable(LoRaP2PNetwork ${SOURCE_FILES})
+
+if(WIN32)
+    target_link_libraries(LoRaP2PNetwork wsock32 ws2_32)
+endif()
