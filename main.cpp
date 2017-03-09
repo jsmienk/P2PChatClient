@@ -8,12 +8,11 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <iostream>
+#include <thread>
 
 // include the right file depending on the OS
 #ifdef __WIN32__
-
 #include <winsock2.h>
-
 #else
 
 #include <sys/socket.h>
@@ -22,10 +21,12 @@
 
 #define PORT 5672
 #define BLEN 512
+#define SUBNET "145.76.241"
+#define MASK "255"
 
-/*
- * This function reports the error and
- * exits back to the shell:
+/**
+ * Displays the error and reports back to the shell
+ * @param on_what error message
  */
 static void display_error(const char *on_what)
 {
@@ -36,149 +37,141 @@ static void display_error(const char *on_what)
     exit(1);
 }
 
+int sock;                       // socket
+struct sockaddr_in socket_me;   // our socket address
+int socket_length;              // length
+struct sockaddr_in socket_them; // the socket address for the sender
+int data_size;
+
+void receiving()
+{
+    // Wait for incoming messages
+    // 2 types:
+    //  - New node in the network
+    //  - Onion we have to redirect
+    char buffer[BLEN];              // receive buffer
+    char time_date_result[BLEN];    // date/time Result
+    time_t time_date_current;       // current time and date
+    struct tm tm;                   // date time values
+
+    for (;;)
+    {
+        // Socket length of their socket on send and receive
+        socket_length = sizeof(socket_them);
+
+        // Receive anything
+        data_size = (int) recv(sock, buffer, BLEN, 0);
+        // If we received something
+        if (data_size < 0)
+        {
+            display_error("recvfrom(2)");
+        }
+
+        // Print what we got
+        std::cout << "Received: " << buffer << std::endl;
+
+//        // Process
+//        buffer[data_size] = 0; // null terminate
+//        if (!strcasecmp(buffer, "QUIT"))
+//        {
+//            break;
+//        }
+//
+//        /*
+//         * Get the current date and time:
+//         */
+//        time(&time_date_current);            // Get current time & date
+//        tm = *localtime(&time_date_current); // Get components
+//
+//        /*
+//         * Format a new date and time string,
+//         * based upon the input format string:
+//         */
+//        strftime(time_date_result,         // Formatted result
+//                 sizeof(time_date_result), // Max result size
+//                 buffer,                   // Input date/time format
+//                 &tm);                     // Input date/time values
+//
+//        /*
+//         * Send the formatted result back to the
+//         * client program:
+//         */
+//        data_size = (int) sendto(sock,                             // Socket to send result
+//                                 "Hallo?",                 // The datagram result to send
+//                                 sizeof("Hallo?"),         // The datagram length
+//                                 0,                                // Flags: no options
+//                                 (struct sockaddr *) "145.76.241.255", // Address
+//                                 (socklen_t) sizeof("145.76.241.255"));       // Client address length
+//
+//        // if the sending succeeded
+//        if (data_size < 0)
+//        {
+//            display_error("sendto(2)");
+//        }
+    }
+}
+
+void sending()
+{
+    for (int i = 0; i < 100; i++)
+    {
+        data_size = (int) sendto(sock, std::to_string(i).c_str(), sizeof(i), 0, (struct sockaddr *) &socket_them,
+                                 sizeof(socket_them));
+    }
+}
+
 int main(int argc, char **argv)
 {
-    int data_size;
-    char *address = nullptr;
-    struct sockaddr_in socket_me;   // AF_INET
-    struct sockaddr_in socket_them; // AF_INET
-    int socket_length;              // length
-    int sock;                       // Socket
-    char buffer[BLEN];              // Recv buffer
-    char time_date_result[BLEN];    // Date/Time Result
-    time_t time_date;               // Current Time and Date
-    struct tm tm;                   // Date time values
 
-    /*
-     * Use a server address from the command
-     * line, if one has been provided.
-     * Otherwise, this program will default
-     * to using the arbitrary address
-     * 127.0.0.X
-     */
-    if (argc >= 2)
-    {
-        // Addr on cmdline:
-        address = argv[1];
-    } else
-    {
-        // Use default address:
-        address = (char *) "127.0.0.1";
-    }
-
-    /*
-     * Create a UDP socket to use:
-     */
+    // Prepare socket
     if ((sock = socket(AF_INET, SOCK_DGRAM, 0)) == -1)
     {
         display_error("socket()");
     }
-    /*
-     * Create a socket address, for use
-     * with bind(2):
-     */
+    std::cout << "Socket prepared." << std::endl;
+
+    // Create a socket address, for use with bind(2)
     memset(&socket_me, 0, sizeof(socket_me));
     socket_me.sin_family = AF_INET;
     socket_me.sin_port = htons(PORT);
     socket_me.sin_addr.s_addr = INADDR_ANY;
 
-    if (socket_me.sin_addr.s_addr == INADDR_NONE)
-    {
-        display_error("bad address.");
-    }
-
-    // socket length of our socket on bind
-    socket_length = sizeof(socket_me);
-
-    /*
-     * Bind a address to our socket, so that
-     * client programs can contact this
-     * server:
-     */
-    if ((data_size = bind(sock, (struct sockaddr *) &socket_me, (socklen_t) socket_length)) == -1)
+    // Bind a address to our socket, so that client programs can contact this node
+    if ((data_size = bind(sock, (struct sockaddr *) &socket_me, (socklen_t) sizeof(socket_me))) == -1)
     {
         display_error("bind()");
     }
+    std::cout << "Socket bound." << std::endl;
 
-    /*
-     * Now wait for requests:
-     */
-    for (;;)
+    // Broadcast my IP, Kp and request other IPs and Kps (and nickname if client)
+    socket_them.sin_family = AF_INET;
+    socket_them.sin_port = htons(PORT);
+    socket_them.sin_addr.s_addr = inet_addr("127.0.0.1");//SUBNET "." MASK);
+    if (socket_them.sin_addr.s_addr == INADDR_NONE)
     {
-        // socket length of their socket on send and receive
-        socket_length = sizeof(socket_them);
-
-        // receive anything
-        data_size = (int) recv(sock, buffer, BLEN, 0);
-        // if we received something
-        if (data_size < 0)
-        {
-            display_error("recvfrom(2)");
-        }
-
-//        data_size = (int) recvfrom(sock,                           // Our socket
-//                                   buffer,                           // Receiving buffer
-//                                   BLEN,                             // Buffer size
-//                                   0,                                // Flags: no options
-//                                   (struct sockaddr *) &socket_them, // Their socket address
-//                                   (socklen_t *) &socket_length);    // Address length, in & out
-//
-//        std::cout << socket_them.sin_addr.s_addr << ":" << socket_them.sin_port << std::endl;
-
-        // if we received something
-        if (data_size < 0)
-        {
-            display_error("recvfrom(2)");
-        }
-
-        // print what we got
-        std::cout << buffer << std::endl;
-
-        /*
-         * Process the request:
-         */
-        buffer[data_size] = 0; // null terminate
-        if (!strcasecmp(buffer, "QUIT"))
-        {
-            break;
-        }
-
-        /*
-         * Get the current date and time:
-         */
-        time(&time_date);            // Get current time & date
-        tm = *localtime(&time_date); // Get components
-
-        /*
-         * Format a new date and time string,
-         * based upon the input format string:
-         */
-        strftime(time_date_result,         // Formatted result
-                 sizeof(time_date_result), // Max result size
-                 buffer,                   // Input date/time format
-                 &tm);                     // Input date/time values
-
-        /*
-         * Send the formatted result back to the
-         * client program:
-         */
-        data_size = (int) sendto(sock,                             // Socket to send result
-                                 "Hallo?",                 // The datagram result to send
-                                 sizeof("Hallo?"),         // The datagram length
-                                 0,                                // Flags: no options
-                                 (struct sockaddr *) "145.76.241.255", // Address
-                                 (socklen_t) sizeof("145.76.241.255"));       // Client address length
-
-        // if the sending succeeded
-        if (data_size < 0)
-        {
-            display_error("sendto(2)");
-        }
+        display_error("bad address");
     }
 
-    /*
-     * Close the socket and exit:
-     */
+    char *broadcast_message = (char *) "Hallo!";
+    data_size = (int) sendto(sock, broadcast_message, sizeof(broadcast_message), 0, (struct sockaddr *) &socket_them,
+                             sizeof(socket_them));
+
+    // Start the thread that will receive messages
+    std::thread thread_receive(receiving);
+    // Start the thread that will send messages
+    std::thread thread_send(sending);
+
+    thread_receive.join();
+    std::cout << "Receive thread started." << std::endl;
+    thread_send.join();
+    std::cout << "Send thread started." << std::endl;
+
+    // TEST BROADCAST "Hallo!"
+    data_size = (int) sendto(sock, broadcast_message, sizeof(broadcast_message), 0, (struct sockaddr *) &socket_them,
+                             sizeof(socket_them));
+    std::cout << "TETS BROADCAST SEND" << std::endl;
+
+    // Close the socket and exit
     close(sock);
     return 0;
 }

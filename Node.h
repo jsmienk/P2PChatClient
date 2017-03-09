@@ -18,7 +18,7 @@ class Node
     in_addr addr;
 
     // public key
-
+    CryptoPP::RSA::PublicKey Kp;
 
     // nick name (optional; not used in node)
     std::string nickname;
