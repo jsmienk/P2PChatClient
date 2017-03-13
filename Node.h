@@ -34,7 +34,9 @@ public:
         return addr;
     };
 
-    bool send();
+    bool redirect();
+
+    std::string decode();
 
     inline std::string get_nickname()
     {
