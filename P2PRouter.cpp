@@ -18,16 +18,14 @@
 #include <winsock2.h>
 
 #else
-
+#include <arpa/inet.h>
 #include <sys/socket.h>
 
 #endif
 
-#include <arpa/inet.h>
 #include <string.h> //memset
 #include <stdlib.h> //exit(0);
 #include <iostream>
-
 #include "P2PRouter.h"
 
 using namespace std;

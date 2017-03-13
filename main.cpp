@@ -4,22 +4,23 @@
 #include <errno.h>
 #include <string.h>
 #include <sys/types.h>
-#include <netinet/in.h>
-#include <arpa/inet.h>
 #include <iostream>
 #include <thread>
-#include <ifaddrs.h>
-
 #include "rapidjson/document.h"
 #include "rapidjson/writer.h"
 #include "rapidjson/stringbuffer.h"
 
+using namespace std;
 #ifdef __WIN32__
 #include <winsock2.h>
+#include <wininet.h>
+#include <ws2tcpip.h>
+
 #else
-
+#include <netinet/in.h>
+#include <arpa/inet.h>
 #include <sys/socket.h>
-
+#include <ifaddrs.h>
 #endif
 
 // port name == LoRa
@@ -138,8 +139,12 @@ void sending()
 int main(int argc, char **argv)
 {
 
+#ifdef __WIN32__
+    WSADATA Data;
+    WSAStartup(MAKEWORD(2, 2), &Data);
+#endif
     // Prepare socket
-    if ((sock = socket(AF_INET, SOCK_DGRAM, 0)) == -1)
+    if ((sock = socket(AF_INET, SOCK_DGRAM, 0)) == INVALID_SOCKET)
     {
         display_error("socket()");
     }
@@ -176,7 +181,7 @@ int main(int argc, char **argv)
     if ((data_size = setsockopt(sock,
                                 SOL_SOCKET,
                                 SO_BROADCAST,
-                                &socket_them,
+                                (const char *) &socket_them,
                                 sizeof(socket_them))) == -1)
     {
         display_error("setsockopt(SO_BROADCAST)");
@@ -199,6 +204,9 @@ int main(int argc, char **argv)
 
     // Close the socket and exit
     close(sock);
+#ifdef __WIN32__
+    WSACleanup();
+#endif
     return 0;
 }
 
@@ -219,6 +227,35 @@ static void display_error(const char *on_what)
  * Get a IPv4 network interface address
  * @return address or nullptr
  */
+
+#ifdef __WIN32__
+static std::string get_network_interface_address()
+{
+//    char ac[80];
+//    if (gethostname(ac, sizeof(ac)) == SOCKET_ERROR) {
+//        cerr << "Error " << WSAGetLastError() <<
+//             " when getting local host name." << endl;
+//        return nullptr;
+//    }
+//    cout << "Host name is " << ac << "." << endl;
+//
+//    struct hostent *phe = gethostbyname(ac);
+//    if (phe == 0) {
+//        cerr << "Yow! Bad host lookup." << endl;
+//        return nullptr;
+//    }
+//
+//    for (int i = 0; phe->h_addr_list[i] != 0; ++i) {
+//        struct in_addr addr;
+//        memcpy(&addr, phe->h_addr_list[i], sizeof(struct in_addr));
+//        cout << "Address " << i << ": " << inet_ntoa(addr) << endl;
+//        return inet_ntoa(addr);
+//    }
+//
+//    return nullptr;
+    return "145.76.246.131";
+}
+#else
 static std::string get_network_interface_address()
 {
     struct ifaddrs *ifAddrStruct = NULL;
@@ -226,6 +263,7 @@ static std::string get_network_interface_address()
     void *tmpAddrPtr = NULL;
 
     getifaddrs(&ifAddrStruct);
+
 
     for (ifa = ifAddrStruct; ifa != NULL; ifa = ifa->ifa_next)
     {
@@ -263,3 +301,4 @@ static std::string get_network_interface_address()
 
     return nullptr;
 }
+#endif

@@ -13,10 +13,11 @@
 
 #include <sys/socket.h>
 #include <arpa/inet.h>
+#include <netdb.h>
+
 
 #endif
 
-#include <netdb.h>
 
 #include <string>
 #include <map>
