@@ -79,11 +79,17 @@ void receiving()
         json.Parse(received.c_str());
 
         // Check if parse succeeded
-        char json_buffer[sizeof(received.c_str())];
-        memcpy(json_buffer, received.c_str(), received.size());
-        if (json.ParseInsitu(json_buffer).HasParseError())
+        try
         {
-            display_error("JSON could not be parsed!");
+            char json_buffer[sizeof(received.c_str())];
+            memcpy(json_buffer, received.c_str(), received.size());
+            if (json.ParseInsitu(json_buffer).HasParseError())
+            {
+                display_error("JSON could not be parsed!");
+            }
+        } catch (std::exception)
+        {
+
         }
 
 //
@@ -118,6 +124,9 @@ void sending()
     {
         std::string console_input;
         getline(std::cin, console_input);
+
+        std::cout << "Sending: " << console_input << std::endl;
+
         data_size = (int) sendto(sock, console_input.c_str(), console_input.size(), 0,
                                  (struct sockaddr *) &socket_them,
                                  sizeof(socket_them));
