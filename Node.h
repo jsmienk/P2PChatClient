@@ -6,7 +6,7 @@
 #define LORAP2PNETWORK_NODE_H
 
 #ifdef __WIN32__
-
+#include <inaddr.h>
 //#include <wininet.h>
 #else
 #include <netinet/in.h>
@@ -15,7 +15,7 @@
 
 #include <string>
 #include <vector>
-#include <inaddr.h>
+
 
 #include "cryptopp565/rsa.h"
 

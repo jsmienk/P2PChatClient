@@ -10,12 +10,11 @@
 #include "rapidjson/writer.h"
 #include "rapidjson/stringbuffer.h"
 
-using namespace std;
 #ifdef __WIN32__
 #include <winsock2.h>
 #include <wininet.h>
 #include <ws2tcpip.h>
-
+using namespace std;
 
 #else
 #include <netinet/in.h>
@@ -78,16 +77,16 @@ void receiving()
         std::cout << "Received: " << received << std::endl;
 
         rapidjson::Document json;
-        json.Parse(received.c_str());
+//        json.Parse(received.c_str());
 
         // Check if parse succeeded
         try
         {
-            char json_buffer[sizeof(received.c_str())];
-            memcpy(json_buffer, received.c_str(), received.size());
-            if (json.ParseInsitu(json_buffer).HasParseError())
+            if (json.Parse<0>(received.c_str()).HasParseError())
             {
                 display_error("JSON could not be parsed!");
+            } else{
+                json.Parse(received.c_str());
             }
         } catch (std::exception)
         {
@@ -145,7 +144,7 @@ int main(int argc, char **argv)
     WSAStartup(MAKEWORD(2, 2), &Data);
 #endif
     // Prepare socket
-    if ((sock = socket(AF_INET, SOCK_DGRAM, 0)) == INVALID_SOCKET)
+    if ((sock = socket(AF_INET, SOCK_DGRAM, 0)) == -1)
     {
         display_error("socket()");
     }
@@ -158,12 +157,21 @@ int main(int argc, char **argv)
     socket_me.sin_addr.s_addr = INADDR_ANY;
 
     // Bind a address to our socket, so that client programs can contact this node
+#ifdef __WIN32__
     if ((data_size = bind(sock, (struct sockaddr *) &socket_me, (socklen_t) sizeof(socket_me))) == -1)
     {
         display_error("bind()");
     }
     std::cout << "Socket bound." << std::endl;
+#else
+    if  ((data_size = bind(sock, (struct sockaddr *) &socket_me, (socklen_t) sizeof(socket_me))) == -1)
+    {
+        display_error("bind()");
+    }
+    std::cout << "Socket bound." << std::endl;
 
+
+#endif
     // Broadcast socket
     socket_them.sin_family = AF_INET;
     socket_them.sin_port = htons(PORT);
