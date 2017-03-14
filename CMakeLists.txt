@@ -10,7 +10,10 @@ file(GLOB rapidjson_SRC
         "rapidjson/*.h"
         "rapidjson/*.cpp"
         )
-
+file(GLOB jsoncpp_SRC
+        "jsoncpp/include/json/*.h"
+        "jsoncpp/include/json/*.cpp"
+        )
 set(CMAKE_CXX_STANDARD 11)
 
 set(SOURCE_FILES main.cpp Node.cpp Node.h P2PRouter.cpp P2PRouter.h ${crypto_SRC} ${rapidjson_SRC})

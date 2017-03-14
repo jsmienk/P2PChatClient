@@ -10,6 +10,17 @@
 #include <thread>
 #include <ifaddrs.h>
 
+
+#include <jsoncpp/dist/json/json.h>
+
+#include <jsoncpp/include/json/reader.h>
+#include <jsoncpp/include/json/writer.h>
+#include <jsoncpp/include/json/value.h>
+
+//#include "json.hpp"
+//using json = nlohmann::json;
+
+
 #include "rapidjson/document.h"
 #include "rapidjson/writer.h"
 #include "rapidjson/stringbuffer.h"
@@ -75,22 +86,54 @@ void receiving()
         // Print what we got
         std::cout << "Received: " << received << std::endl;
 
-        rapidjson::Document json;
-        json.Parse(received.c_str());
+
+//        rapidjson::Document json;
+//        json.Parse(received.c_str());
 
         // Check if parse succeeded
+//        json j = json::parse(received.c_str());
+
+            std::string strJson = received; // need escape the quotes
+
+            Json::Value root;
+            Json::Reader reader;
+            bool parsingSuccessful = reader.parse( strJson.c_str(), root );     //parse process
+            if ( !parsingSuccessful )
+            {
+                std::cout  << "Failed to parse"
+                           << reader.getFormattedErrorMessages();
+                display_error("Non Parsable");
+            }
+            std::cout << root.get("mykey", "A Default Value if not exists" ).asString() << std::endl;
+//            return 0;
+        }
+
+
+
+
         try
         {
-            char json_buffer[sizeof(received.c_str())];
-            memcpy(json_buffer, received.c_str(), received.size());
-            if (json.ParseInsitu(json_buffer).HasParseError())
-            {
-                display_error("JSON could not be parsed!");
+            auto j1 = json::parse(received);
+//            std::cout << (j1.type() == json::value_t::null) << std::endl;
+            std::cout << j1.size()<< std::endl;
+            if ((j1 == nullptr) !=0) {
+            display_error("Non Parsable");
             }
-        } catch (std::exception)
-        {
+            std::cout << j1 << std::endl;
+        } catch (std::invalid_argument){
 
         }
+
+//            char json_buffer[sizeof(received.c_str())];
+//            memcpy(j1, received.c_str(), received.size());
+//            if (json.ParseInsitu(json_buffer).HasParseError())
+//            {
+//                display_error("JSON could not be parsed!");
+//            }
+//        } catch (std::exception)
+//        {
+//
+//        }
 
 //
 //        /*
