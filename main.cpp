@@ -265,15 +265,18 @@ static std::string get_network_interface_address()
 
     char aszIPAddresses[10][16];
 
+    int ipCount = -1;
+
     for(int iCnt = 0; ((pHost->h_addr_list[iCnt]) && (iCnt < 10)); ++iCnt)
     {
         memcpy(&SocketAddress.sin_addr, pHost->h_addr_list[iCnt], pHost->h_length);
         strcpy(aszIPAddresses[iCnt], inet_ntoa(SocketAddress.sin_addr));
+        ipCount++;
     }
 
     WSACleanup();
 
-    return aszIPAddresses[pHost->h_length-1];
+    return aszIPAddresses[ipCount];
 }
 #else
 static std::string get_network_interface_address()
