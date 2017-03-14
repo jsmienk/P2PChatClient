@@ -25,7 +25,7 @@ using namespace std;
 
 // port name == LoRa
 #define PORT 5672
-#define BLEN 512
+#define BLEN 1024
 #define MASK "255"
 
 // pre-declarations
@@ -74,7 +74,7 @@ void receiving()
 //        if (received != last_send_message)
 //        {
         // Print what we got
-        std::cout << "Received: " << received << std::endl;
+//        std::cout << "Received: " << received << std::endl;
 
         rapidjson::Document json;
 //        json.Parse(received.c_str());
@@ -86,12 +86,21 @@ void receiving()
             {
                 display_error("JSON could not be parsed!");
             } else{
-                json.Parse(received.c_str());
+                json.Parse(received.c_str());{}
+                if ((json.HasMember("Nickname"))) {
+                    assert(json["Nickname"].IsString());
+                    std::cout << json["Nickname"].GetString() << std::endl;
+                } else if(json.HasMember("ConsoleInput")){
+                    assert(json["ConsoleInput"].IsString());
+                    std::cout << json["ConsoleInput"].GetString() << std::endl;
+                }
+//                json.
             }
         } catch (std::exception)
         {
 
         }
+
 
 //
 //        /*
