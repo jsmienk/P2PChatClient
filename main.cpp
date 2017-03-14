@@ -16,6 +16,7 @@ using namespace std;
 #include <wininet.h>
 #include <ws2tcpip.h>
 
+
 #else
 #include <netinet/in.h>
 #include <arpa/inet.h>
@@ -231,29 +232,48 @@ static void display_error(const char *on_what)
 #ifdef __WIN32__
 static std::string get_network_interface_address()
 {
-//    char ac[80];
-//    if (gethostname(ac, sizeof(ac)) == SOCKET_ERROR) {
-//        cerr << "Error " << WSAGetLastError() <<
-//             " when getting local host name." << endl;
-//        return nullptr;
-//    }
-//    cout << "Host name is " << ac << "." << endl;
-//
-//    struct hostent *phe = gethostbyname(ac);
-//    if (phe == 0) {
-//        cerr << "Yow! Bad host lookup." << endl;
-//        return nullptr;
-//    }
-//
-//    for (int i = 0; phe->h_addr_list[i] != 0; ++i) {
-//        struct in_addr addr;
-//        memcpy(&addr, phe->h_addr_list[i], sizeof(struct in_addr));
-//        cout << "Address " << i << ": " << inet_ntoa(addr) << endl;
-//        return inet_ntoa(addr);
-//    }
-//
-//    return nullptr;
-    return "145.76.246.131";
+    WSADATA WSAData;
+
+    // Initialize winsock dll
+    if(::WSAStartup(MAKEWORD(1, 0), &WSAData))
+    {
+        // Error handling
+        display_error("WSAStartup error");
+    }
+
+    // Get local host name
+    char szHostName[128] = "";
+
+    if(::gethostname(szHostName, sizeof(szHostName)))
+    {
+        display_error("WSA Error no hostNames");
+        WSAGetLastError();
+        // Error handling -> call 'WSAGetLastError()'
+    }
+
+    // Get local IP addresses
+    struct sockaddr_in SocketAddress;
+    struct hostent     *pHost        = 0;
+
+    pHost = ::gethostbyname(szHostName);
+    if(!pHost)
+    {
+        display_error("WSA Error no pHosts");
+        WSAGetLastError();
+        // Error handling -> call 'WSAGetLastError()'
+    }
+
+    char aszIPAddresses[10][16];
+
+    for(int iCnt = 0; ((pHost->h_addr_list[iCnt]) && (iCnt < 10)); ++iCnt)
+    {
+        memcpy(&SocketAddress.sin_addr, pHost->h_addr_list[iCnt], pHost->h_length);
+        strcpy(aszIPAddresses[iCnt], inet_ntoa(SocketAddress.sin_addr));
+    }
+
+    WSACleanup();
+
+    return aszIPAddresses[pHost->h_length-1];
 }
 #else
 static std::string get_network_interface_address()
