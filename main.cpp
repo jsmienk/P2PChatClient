@@ -93,6 +93,15 @@ void receiving()
                 } else if(json.HasMember("ConsoleInput")){
                     assert(json["ConsoleInput"].IsString());
                     std::cout << json["ConsoleInput"].GetString() << std::endl;
+                } else if(json.HasMember("PublicKeyModulus")){
+                    assert(json["PublicKeyModulus"].IsString());
+                    std::cout << json[""].GetString() << std::endl;
+                } else if(json.HasMember("")){
+                    assert(json[""].IsString());
+                    std::cout << json[""].GetString() << std::endl;
+                } else if(json.HasMember("")){
+                    assert(json[""].IsString());
+                    std::cout << json[""].GetString() << std::endl;
                 }
 //                json.
             }
