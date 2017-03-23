@@ -17,10 +17,12 @@
 using namespace std;
 
 #else
+
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <sys/socket.h>
 #include <ifaddrs.h>
+
 #endif
 
 // port name == LoRa
@@ -43,8 +45,7 @@ std::string address = get_network_interface_address();
 std::string address_broadcast;
 std::string last_send_message;
 
-void receiving()
-{
+void receiving() {
     std::cout << "Receive thread started." << std::endl;
 
     // Wait for incoming messages
@@ -56,15 +57,13 @@ void receiving()
 
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wmissing-noreturn"
-    for (;;)
-    {
+    for (;;) {
         memset(buffer, 0, sizeof(buffer));
 
         // Receive anything
         data_size = (int) recv(sock, buffer, BLEN, 0);
         // If we received something
-        if (data_size < 0)
-        {
+        if (data_size < 0) {
             display_error("recvfrom(2)");
         }
 
@@ -74,39 +73,36 @@ void receiving()
 //        if (received != last_send_message)
 //        {
         // Print what we got
-//        std::cout << "Received: " << received << std::endl;
+        std::cout << "Received: " << received << std::endl;
 
         rapidjson::Document json;
 //        json.Parse(received.c_str());
 
         // Check if parse succeeded
-        try
-        {
-            if (json.Parse<0>(received.c_str()).HasParseError())
-            {
+        try {
+            if (json.Parse<0>(received.c_str()).HasParseError()) {
                 display_error("JSON could not be parsed!");
-            } else{
-                json.Parse(received.c_str());{}
+            } else {
+                json.Parse(received.c_str());
+                {};
                 if ((json.HasMember("Nickname"))) {
                     assert(json["Nickname"].IsString());
                     std::cout << json["Nickname"].GetString() << std::endl;
-                } else if(json.HasMember("ConsoleInput")){
+                } else if (json.HasMember("ConsoleInput")) {
                     assert(json["ConsoleInput"].IsString());
                     std::cout << json["ConsoleInput"].GetString() << std::endl;
-                } else if(json.HasMember("PublicKeyModulus")){
+                } else if (json.HasMember("PublicKeyModulus")) {
                     assert(json["PublicKeyModulus"].IsString());
                     std::cout << json[""].GetString() << std::endl;
-                } else if(json.HasMember("")){
+                } else if (json.HasMember("")) {
                     assert(json[""].IsString());
                     std::cout << json[""].GetString() << std::endl;
-                } else if(json.HasMember("")){
+                } else if (json.HasMember("")) {
                     assert(json[""].IsString());
                     std::cout << json[""].GetString() << std::endl;
                 }
-//                json.
             }
-        } catch (std::exception)
-        {
+        } catch (std::exception) {
 
         }
 
@@ -133,14 +129,12 @@ void receiving()
 #pragma clang diagnostic pop
 }
 
-void sending()
-{
+void sending() {
     std::cout << "Send thread started." << std::endl;
 
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wmissing-noreturn"
-    for (;;)
-    {
+    for (;;) {
         std::string console_input;
         getline(std::cin, console_input);
 
@@ -154,16 +148,14 @@ void sending()
 #pragma clang diagnostic pop
 }
 
-int main(int argc, char **argv)
-{
+int main(int argc, char **argv) {
 
 #ifdef __WIN32__
     WSADATA Data;
     WSAStartup(MAKEWORD(2, 2), &Data);
 #endif
     // Prepare socket
-    if ((sock = socket(AF_INET, SOCK_DGRAM, 0)) == -1)
-    {
+    if ((sock = socket(AF_INET, SOCK_DGRAM, 0)) == -1) {
         display_error("socket()");
     }
     std::cout << "Socket prepared." << std::endl;
@@ -182,8 +174,7 @@ int main(int argc, char **argv)
     }
     std::cout << "Socket bound." << std::endl;
 #else
-    if  ((data_size = bind(sock, (struct sockaddr *) &socket_me, (socklen_t) sizeof(socket_me))) == -1)
-    {
+    if ((data_size = bind(sock, (struct sockaddr *) &socket_me, (socklen_t) sizeof(socket_me))) == -1) {
         display_error("bind()");
     }
     std::cout << "Socket bound." << std::endl;
@@ -199,8 +190,7 @@ int main(int argc, char **argv)
     std::cout << "Broadcast address formed: " << address_broadcast << std::endl;
 
     socket_them.sin_addr.s_addr = inet_addr(address_broadcast.c_str());
-    if (socket_them.sin_addr.s_addr == INADDR_NONE)
-    {
+    if (socket_them.sin_addr.s_addr == INADDR_NONE) {
         display_error("bad address");
     }
 
@@ -209,8 +199,7 @@ int main(int argc, char **argv)
                                 SOL_SOCKET,
                                 SO_BROADCAST,
                                 (const char *) &socket_them,
-                                sizeof(socket_them))) == -1)
-    {
+                                sizeof(socket_them))) == -1) {
         display_error("setsockopt(SO_BROADCAST)");
     }
 
@@ -241,8 +230,7 @@ int main(int argc, char **argv)
  * Displays the error and reports back to the shell
  * @param on_what error message
  */
-static void display_error(const char *on_what)
-{
+static void display_error(const char *on_what) {
     fputs(strerror(errno), stderr);
     fputs(": ", stderr);
     fputs(on_what, stderr);
@@ -305,8 +293,8 @@ static std::string get_network_interface_address()
     return aszIPAddresses[ipCount];
 }
 #else
-static std::string get_network_interface_address()
-{
+
+static std::string get_network_interface_address() {
     struct ifaddrs *ifAddrStruct = NULL;
     struct ifaddrs *ifa = NULL;
     void *tmpAddrPtr = NULL;
@@ -314,16 +302,13 @@ static std::string get_network_interface_address()
     getifaddrs(&ifAddrStruct);
 
 
-    for (ifa = ifAddrStruct; ifa != NULL; ifa = ifa->ifa_next)
-    {
-        if (!ifa->ifa_addr)
-        {
+    for (ifa = ifAddrStruct; ifa != NULL; ifa = ifa->ifa_next) {
+        if (!ifa->ifa_addr) {
             continue;
         }
 
         // Check if it is IPv4
-        if (ifa->ifa_addr->sa_family == AF_INET)
-        {
+        if (ifa->ifa_addr->sa_family == AF_INET) {
             tmpAddrPtr = &((struct sockaddr_in *) ifa->ifa_addr)->sin_addr;
             char addressBuffer[INET_ADDRSTRLEN];
             inet_ntop(AF_INET, tmpAddrPtr, addressBuffer, INET_ADDRSTRLEN);
@@ -337,8 +322,7 @@ static std::string get_network_interface_address()
 //            }
 
             // If it is not the localhost
-            if (std::strncmp(addressBuffer, "127.0.0.1", sizeof(addressBuffer)) != 0)
-            {
+            if (std::strncmp(addressBuffer, "127.0.0.1", sizeof(addressBuffer)) != 0) {
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wreturn-stack-address"
                 return addressBuffer;
@@ -350,4 +334,5 @@ static std::string get_network_interface_address()
 
     return nullptr;
 }
+
 #endif
