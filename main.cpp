@@ -14,6 +14,7 @@
 #include "cryptopp565/filters.h"
 #include "cryptopp565/osrng.h"
 #include "cryptopp565/rsa.h"
+#include "rapidjson/error/en.h"
 
 #ifdef __WIN32__
 
@@ -28,6 +29,7 @@
 #include <arpa/inet.h>
 #include <sys/socket.h>
 #include <ifaddrs.h>
+#include <sstream>
 
 #endif
 
@@ -96,7 +98,7 @@ void receiving() {
         // Check if parse succeeded
         try {
             if (json.Parse<0>(received.c_str()).HasParseError()) {
-                display_error("JSON could not be parsed!");
+                        display_error("JSON could not be parsed!");
             } else {
                 json.Parse(received.c_str());
 
