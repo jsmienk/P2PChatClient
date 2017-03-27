@@ -8,7 +8,9 @@
 #ifdef __WIN32__
 #include <inaddr.h>
 //#include <wininet.h>
+
 #else
+
 #include <netinet/in.h>
 
 #endif
@@ -41,9 +43,9 @@ public:
         return addr;
     };
 
-    bool redirect();
+    //bool redirect();
 
-    std::string decode();
+    //std::string decode();
 
     inline std::string get_nickname()
     {

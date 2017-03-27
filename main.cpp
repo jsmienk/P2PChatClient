@@ -22,8 +22,6 @@
 #include <ws2tcpip.h>
 #include <sstream>
 
-using namespace std;
-
 #else
 
 #include <netinet/in.h>
@@ -63,7 +61,6 @@ CryptoPP::AutoSeededRandomPool rng;
 
 void receiving() {
     std::cout << "Receive thread started." << std::endl;
-
 
     // Wait for incoming messages
     // 3 types:
@@ -106,7 +103,7 @@ void receiving() {
                 if (json.HasMember("Data")) {
                     assert(json["Data"].IsString());
 
-                    cout << "decrypted: " << peel(json["Data"].GetString()) << endl;
+                    std::cout << "decrypted: " << peel(json["Data"].GetString()) << std::endl;
 
 //                    peel();
                     //Decrypt data
