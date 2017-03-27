@@ -43,7 +43,6 @@ using namespace std;
 static std::string get_network_interface_address();
 
 static void display_error(const char *on_what);
-//std::string decrypt();
 std::string peel(std::string cipher);
 void generateKeys();
 
@@ -165,19 +164,19 @@ int main(int argc, char **argv) {
     generateKeys();
 
     // Bind a address to our socket, so that client programs can contact this node
-#ifdef __WIN32__
-    if ((data_size = bind(sock, (struct sockaddr *) &socket_me, (socklen_t) sizeof(socket_me))) == -1) {
-        display_error("bind()");
-    }
-    std::cout << "Socket bound." << std::endl;
-#else
+//#ifdef __WIN32__
+//    if ((data_size = bind(sock, (struct sockaddr *) &socket_me, (socklen_t) sizeof(socket_me))) == -1) {
+//        display_error("bind()");
+//    }
+//    std::cout << "Socket bound." << std::endl;
+//#else
     if ((data_size = bind(sock, (struct sockaddr *) &socket_me, (socklen_t) sizeof(socket_me))) == -1) {
         display_error("bind()");
     }
     std::cout << "Socket bound." << std::endl;
 
 
-#endif
+//#endif
     // Broadcast socket
     socket_them.sin_family = AF_INET;
     socket_them.sin_port = htons(PORT);
@@ -210,9 +209,11 @@ int main(int argc, char **argv) {
 
 
     //Broadcast Modulus and PublicExponent
-    std::string broadcast_message = "{\"modulus\":\""+osMod.str().substr(0, osMod.str().size()-1)+"\","
-            "\"publicExponent\":\""+osExp.str().substr(0, osExp.str().size()-1)+"\"}";
+//    std::string broadcast_message = "{\"modulus\":\""+osMod.str().substr(0, osMod.str().size()-1)+"\","
+//            "\"publicExponent\":\""+osExp.str().substr(0, osExp.str().size()-1)+"\"}";
 
+
+    std::string broadcast_message = "{\"PublicKeyA\": 7452796124860154829518833219350817108369815222162620118679298227958164110951165438748964148386475833081674299100132214547114,\"PublicKeyB\": 2613205869029846643067005774480669580764558269271457912512433354281023863191665058515303834874136073726540494151945367190152,\"PublicKeyC\": 4972449044627978475257119789613295430424710862745982274976245360598697061583581824924033684089597933769411343248815328163071,\"PublicKeyD\": 7588465351354753950351513918231991681334027535054477786686007715970545706592253056513668904214878657600370986235767654336632,\"PublicKeyE\": 140717748225064653526035238612698569798927999667396070702561044251469740487301141273922073252291010020088917680891539978,\"IPAddress\": \"192.168.43.173\"}";
 
     data_size = (int) sendto(sock, broadcast_message.c_str(), broadcast_message.size(), 0,
                              (struct sockaddr *) &socket_them,
