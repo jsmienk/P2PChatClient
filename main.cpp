@@ -9,11 +9,19 @@
 #include "rapidjson/document.h"
 #include "rapidjson/writer.h"
 #include "rapidjson/stringbuffer.h"
+#include "cryptopp565/aes.h"
+#include "cryptopp565/modes.h"
+#include "cryptopp565/filters.h"
+#include "cryptopp565/osrng.h"
+#include "cryptopp565/rsa.h"
 
 #ifdef __WIN32__
+
 #include <winsock2.h>
 #include <wininet.h>
 #include <ws2tcpip.h>
+#include <sstream>
+
 using namespace std;
 
 #else
@@ -29,11 +37,15 @@ using namespace std;
 #define PORT 5672
 #define BLEN 1024
 #define MASK "255"
+#define RSALEN 2048
 
 // pre-declarations
 static std::string get_network_interface_address();
 
 static void display_error(const char *on_what);
+//std::string decrypt();
+std::string peel(std::string cipher);
+void generateKeys();
 
 int sock;                       // socket
 struct sockaddr_in socket_me;   // our socket address
@@ -45,8 +57,14 @@ std::string address = get_network_interface_address();
 std::string address_broadcast;
 std::string last_send_message;
 
+CryptoPP::RSA::PrivateKey privateKey;
+CryptoPP::RSA::PublicKey publicKey;
+CryptoPP::InvertibleRSAFunction params;
+CryptoPP::AutoSeededRandomPool rng;
+
 void receiving() {
     std::cout << "Receive thread started." << std::endl;
+
 
     // Wait for incoming messages
     // 3 types:
@@ -73,6 +91,7 @@ void receiving() {
 //        if (received != last_send_message)
 //        {
         // Print what we got
+
         std::cout << "Received: " << received << std::endl;
 
         rapidjson::Document json;
@@ -84,50 +103,27 @@ void receiving() {
                 display_error("JSON could not be parsed!");
             } else {
                 json.Parse(received.c_str());
-                {};
-                if ((json.HasMember("Nickname"))) {
-                    assert(json["Nickname"].IsString());
-                    std::cout << json["Nickname"].GetString() << std::endl;
-                } else if (json.HasMember("ConsoleInput")) {
-                    assert(json["ConsoleInput"].IsString());
-                    std::cout << json["ConsoleInput"].GetString() << std::endl;
-                } else if (json.HasMember("PublicKeyModulus")) {
-                    assert(json["PublicKeyModulus"].IsString());
-                    std::cout << json[""].GetString() << std::endl;
-                } else if (json.HasMember("")) {
-                    assert(json[""].IsString());
-                    std::cout << json[""].GetString() << std::endl;
-                } else if (json.HasMember("")) {
-                    assert(json[""].IsString());
-                    std::cout << json[""].GetString() << std::endl;
+
+                if (json.HasMember("Data")) {
+                    assert(json["Data"].IsString());
+
+                    cout << "decrypted: " << peel(json["Data"].GetString()) << endl;
+
+//                    peel();
+                    //Decrypt data
+
+
+                } else if (json.HasMember("MessageType")) {
+                    //doe iets
                 }
             }
         } catch (std::exception) {
 
         }
-
-
-//
-//        /*
-//         * Send the formatted result back to the
-//         * client program:
-//         */
-//        data_size = (int) sendto(sock,                             // Socket to send result
-//                                 "Hallo?",                 // The datagram result to send
-//                                 sizeof("Hallo?"),         // The datagram length
-//                                 0,                                // Flags: no options
-//                                 (struct sockaddr *) "145.76.241.255", // Address
-//                                 (socklen_t) sizeof("145.76.241.255"));       // Client address length
-//
-//        // if the sending succeeded
-//        if (data_size < 0)
-//        {
-//            display_error("sendto(2)");
-//        }
-//        }
     }
-#pragma clang diagnostic pop
 }
+
+#pragma clang diagnostic pop
 
 void sending() {
     std::cout << "Send thread started." << std::endl;
@@ -166,10 +162,11 @@ int main(int argc, char **argv) {
     socket_me.sin_port = htons(PORT);
     socket_me.sin_addr.s_addr = INADDR_ANY;
 
+    generateKeys();
+
     // Bind a address to our socket, so that client programs can contact this node
 #ifdef __WIN32__
-    if ((data_size = bind(sock, (struct sockaddr *) &socket_me, (socklen_t) sizeof(socket_me))) == -1)
-    {
+    if ((data_size = bind(sock, (struct sockaddr *) &socket_me, (socklen_t) sizeof(socket_me))) == -1) {
         display_error("bind()");
     }
     std::cout << "Socket bound." << std::endl;
@@ -204,7 +201,19 @@ int main(int argc, char **argv) {
     }
 
     // Broadcast my IP, Kp and request other IPs and Kps (and nickname if client)
-    std::string broadcast_message = "{\"hello\":3}";
+//    std::string broadcast_message = "{\"hello\":3}";
+
+    std::ostringstream osMod;
+    std::ostringstream osExp;
+    osMod << publicKey.GetModulus();
+    osExp << publicKey.GetPublicExponent();
+
+
+    //Broadcast Modulus and PublicExponent
+    std::string broadcast_message = "{\"modulus\":\""+osMod.str().substr(0, osMod.str().size()-1)+"\","
+            "\"publicExponent\":\""+osExp.str().substr(0, osExp.str().size()-1)+"\"}";
+
+
     data_size = (int) sendto(sock, broadcast_message.c_str(), broadcast_message.size(), 0,
                              (struct sockaddr *) &socket_them,
                              sizeof(socket_them));
@@ -238,19 +247,52 @@ static void display_error(const char *on_what) {
     throw std::exception();
 }
 
+void generateKeys(){
+    params.GenerateRandomWithKeySize(rng, RSALEN);
+    privateKey = CryptoPP::RSA::PrivateKey(params);
+    publicKey = CryptoPP::RSA::PublicKey(params);
+//    cout << "modulus: " << publicKey.GetModulus() << endl;
+//    cout << "public exponent: " << publicKey.GetPublicExponent() << endl;
+}
+
+std::string peel(std::string cipher) { //decrypt
+//std::string peel() {
+
+    std::string recovered;
+//    std::string plain= "Hallo tekst";
+
+    //Encrypt
+//    std::string plain="RSA Encryption", cipher, recovered;
+//    CryptoPP::RSAES_OAEP_SHA_Encryptor e(publicKey);
+//    CryptoPP::StringSource ss1(plain, true,
+//                     new CryptoPP::PK_EncryptorFilter(rng, e,
+//                                            new CryptoPP::StringSink(cipher)
+//                     ) // PK_EncryptorFilter
+//    ); // StringSource
+
+//    cout << "plaintext: " << plain << endl;
+//    cout << "cipher: " << cipher << endl;
+
+    //Decrypt
+    CryptoPP::RSAES_OAEP_SHA_Decryptor d(privateKey);
+    CryptoPP::StringSource ss2(cipher,true, new CryptoPP::PK_DecryptorFilter(rng, d, new CryptoPP::StringSink(recovered))); // StringSource
+
+//    cout << "Recoverd text: " << recovered << endl;
+    return recovered;
+}
+
 /**
  * Get a IPv4 network interface address
  * @return address or nullptr
  */
 
 #ifdef __WIN32__
-static std::string get_network_interface_address()
-{
+
+static std::string get_network_interface_address() {
     WSADATA WSAData;
 
     // Initialize winsock dll
-    if(::WSAStartup(MAKEWORD(1, 0), &WSAData))
-    {
+    if (::WSAStartup(MAKEWORD(1, 0), &WSAData)) {
         // Error handling
         display_error("WSAStartup error");
     }
@@ -258,8 +300,7 @@ static std::string get_network_interface_address()
     // Get local host name
     char szHostName[128] = "";
 
-    if(::gethostname(szHostName, sizeof(szHostName)))
-    {
+    if (::gethostname(szHostName, sizeof(szHostName))) {
         display_error("WSA Error no hostNames");
         WSAGetLastError();
         // Error handling -> call 'WSAGetLastError()'
@@ -267,11 +308,10 @@ static std::string get_network_interface_address()
 
     // Get local IP addresses
     struct sockaddr_in SocketAddress;
-    struct hostent     *pHost        = 0;
+    struct hostent *pHost = 0;
 
     pHost = ::gethostbyname(szHostName);
-    if(!pHost)
-    {
+    if (!pHost) {
         display_error("WSA Error no pHosts");
         WSAGetLastError();
         // Error handling -> call 'WSAGetLastError()'
@@ -281,8 +321,7 @@ static std::string get_network_interface_address()
 
     int ipCount = -1;
 
-    for(int iCnt = 0; ((pHost->h_addr_list[iCnt]) && (iCnt < 10)); ++iCnt)
-    {
+    for (int iCnt = 0; ((pHost->h_addr_list[iCnt]) && (iCnt < 10)); ++iCnt) {
         memcpy(&SocketAddress.sin_addr, pHost->h_addr_list[iCnt], pHost->h_length);
         strcpy(aszIPAddresses[iCnt], inet_ntoa(SocketAddress.sin_addr));
         ipCount++;
@@ -292,6 +331,7 @@ static std::string get_network_interface_address()
 
     return aszIPAddresses[ipCount];
 }
+
 #else
 
 static std::string get_network_interface_address() {
