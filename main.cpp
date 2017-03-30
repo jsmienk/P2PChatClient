@@ -15,6 +15,7 @@
 #include "cryptopp565/osrng.h"
 #include "cryptopp565/rsa.h"
 #include "rapidjson/error/en.h"
+#include <cctype>
 
 #ifdef __WIN32__
 
@@ -45,6 +46,7 @@ static std::string get_network_interface_address();
 static void display_error(const char *on_what);
 std::string peel(std::string cipher);
 void generateKeys();
+void broadCast(std::string data);
 
 int sock;                       // socket
 struct sockaddr_in socket_me;   // our socket address
@@ -85,15 +87,11 @@ void receiving() {
 
         std::string received = buffer;
 
-        // If the received message is not ours
-//        if (received != last_send_message)
-//        {
         // Print what we got
 
         std::cout << "Received: " << received << std::endl;
 
         rapidjson::Document json;
-//        json.Parse(received.c_str());
 
         // Check if parse succeeded
         try {
@@ -104,13 +102,12 @@ void receiving() {
 
                 if (json.HasMember("Data")) {
                     assert(json["Data"].IsString());
+                    std::string decrypted_message = peel(json["Data"].GetString());
+                    if(decrypted_message != "0"){
+                        std::string new_message = "{\"NewData\":\"" + decrypted_message + "\"}";
 
-                    std::cout << "decrypted: " << peel(json["Data"].GetString()) << std::endl;
-
-//                    peel();
-                    //Decrypt data
-
-
+                        broadCast(new_message);
+                    }
                 } else if (json.HasMember("MessageType")) {
                     //doe iets
                 }
@@ -122,6 +119,16 @@ void receiving() {
 }
 
 #pragma clang diagnostic pop
+
+
+void broadCast(std::string data){
+    std::cout << "broadcast decrypted message" << std::endl;
+
+    data_size = (int) sendto(sock, data.c_str(), data.size(), 0,
+                             (struct sockaddr *) &socket_them,
+                             sizeof(socket_them));
+    last_send_message = data;
+}
 
 void sending() {
     std::cout << "Send thread started." << std::endl;
@@ -163,19 +170,11 @@ int main(int argc, char **argv) {
     generateKeys();
 
     // Bind a address to our socket, so that client programs can contact this node
-//#ifdef __WIN32__
-//    if ((data_size = bind(sock, (struct sockaddr *) &socket_me, (socklen_t) sizeof(socket_me))) == -1) {
-//        display_error("bind()");
-//    }
-//    std::cout << "Socket bound." << std::endl;
-//#else
     if ((data_size = bind(sock, (struct sockaddr *) &socket_me, (socklen_t) sizeof(socket_me))) == -1) {
         display_error("bind()");
     }
     std::cout << "Socket bound." << std::endl;
 
-
-//#endif
     // Broadcast socket
     socket_them.sin_family = AF_INET;
     socket_them.sin_port = htons(PORT);
@@ -199,7 +198,6 @@ int main(int argc, char **argv) {
     }
 
     // Broadcast my IP, Kp and request other IPs and Kps (and nickname if client)
-//    std::string broadcast_message = "{\"hello\":3}";
 
     std::ostringstream osMod;
     std::ostringstream osExp;
@@ -208,11 +206,7 @@ int main(int argc, char **argv) {
 
 
     //Broadcast Modulus and PublicExponent
-//    std::string broadcast_message = "{\"modulus\":\""+osMod.str().substr(0, osMod.str().size()-1)+"\","
-//            "\"publicExponent\":\""+osExp.str().substr(0, osExp.str().size()-1)+"\"}";
-
-
-    std::string broadcast_message = "{\"PublicKeyA\": 7452796124860154829518833219350817108369815222162620118679298227958164110951165438748964148386475833081674299100132214547114,\"PublicKeyB\": 2613205869029846643067005774480669580764558269271457912512433354281023863191665058515303834874136073726540494151945367190152,\"PublicKeyC\": 4972449044627978475257119789613295430424710862745982274976245360598697061583581824924033684089597933769411343248815328163071,\"PublicKeyD\": 7588465351354753950351513918231991681334027535054477786686007715970545706592253056513668904214878657600370986235767654336632,\"PublicKeyE\": 140717748225064653526035238612698569798927999667396070702561044251469740487301141273922073252291010020088917680891539978,\"IPAddress\": \"192.168.43.173\"}";
+    std::string broadcast_message = "{\"Modulus\": \"" + osMod.str().substr(0, osMod.str().size()-1) + "\", \"PublicExponent\":\"" + osExp.str().substr(0, osExp.str().size()-1) + "\"}";
 
     data_size = (int) sendto(sock, broadcast_message.c_str(), broadcast_message.size(), 0,
                              (struct sockaddr *) &socket_them,
@@ -256,13 +250,13 @@ void generateKeys(){
 }
 
 std::string peel(std::string cipher) { //decrypt
-//std::string peel() {
-
+//std::string peel(std::string plain) { //decrypt
     std::string recovered;
 //    std::string plain= "Hallo tekst";
 
     //Encrypt
 //    std::string plain="RSA Encryption", cipher, recovered;
+//    std::string cipher;
 //    CryptoPP::RSAES_OAEP_SHA_Encryptor e(publicKey);
 //    CryptoPP::StringSource ss1(plain, true,
 //                     new CryptoPP::PK_EncryptorFilter(rng, e,
@@ -271,14 +265,18 @@ std::string peel(std::string cipher) { //decrypt
 //    ); // StringSource
 
 //    cout << "plaintext: " << plain << endl;
-//    cout << "cipher: " << cipher << endl;
+//    std::cout << "cipher: " << cipher << std::endl;
 
     //Decrypt
-    CryptoPP::RSAES_OAEP_SHA_Decryptor d(privateKey);
-    CryptoPP::StringSource ss2(cipher,true, new CryptoPP::PK_DecryptorFilter(rng, d, new CryptoPP::StringSink(recovered))); // StringSource
-
-//    cout << "Recoverd text: " << recovered << endl;
-    return recovered;
+    bool contains_non_alpha = cipher.find_first_not_of("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789") != std::string::npos;
+    if(contains_non_alpha){
+        CryptoPP::RSAES_OAEP_SHA_Decryptor d(privateKey);
+        CryptoPP::StringSource ss2(cipher,true, new CryptoPP::PK_DecryptorFilter(rng, d, new CryptoPP::StringSink(recovered))); // StringSource
+        return recovered;
+    }else{
+        std::cerr << "Invalid CipherText" << std::endl;
+        return "0";
+    }
 }
 
 /**
