@@ -323,11 +323,17 @@ static std::string get_network_interface_address() {
         memcpy(&SocketAddress.sin_addr, pHost->h_addr_list[iCnt], pHost->h_length);
         strcpy(aszIPAddresses[iCnt], inet_ntoa(SocketAddress.sin_addr));
         ipCount++;
+        std::cout << "No. " << ipCount << " - IP Adress: " << aszIPAddresses[ipCount] << std::endl;
+
     }
 
     WSACleanup();
 
-    return aszIPAddresses[ipCount];
+    std::cout << "Pick your network adapter" << std::endl;
+    int adapter;
+    std::cin >> adapter;
+
+    return aszIPAddresses[adapter];
 }
 
 #else
