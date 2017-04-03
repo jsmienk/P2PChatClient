@@ -42,11 +42,11 @@
 
 // pre-declarations
 static std::string get_network_interface_address();
-
 static void display_error(const char *on_what);
-std::string peel(std::string cipher);
+std::string decrypt(std::string cipher);
 void generateKeys();
 void broadCast(std::string data);
+
 
 int sock;                       // socket
 struct sockaddr_in socket_me;   // our socket address
@@ -58,19 +58,19 @@ std::string address = get_network_interface_address();
 std::string address_broadcast;
 std::string last_send_message;
 
-CryptoPP::RSA::PrivateKey privateKey;
-CryptoPP::RSA::PublicKey publicKey;
-CryptoPP::InvertibleRSAFunction params;
-CryptoPP::AutoSeededRandomPool rng;
+CryptoPP::RSA::PrivateKey privateKey;       // Private Key
+CryptoPP::RSA::PublicKey publicKey;         // Public Key
+CryptoPP::InvertibleRSAFunction params;     // RSA Parameters
+CryptoPP::AutoSeededRandomPool rng;         // RSA AutoSeededRandomPool
 
+
+/**
+ * Receive UDP messages
+ */
 void receiving() {
     std::cout << "Receive thread started." << std::endl;
 
     // Wait for incoming messages
-    // 3 types:
-    //  - Response on initial broadcast
-    //  - New node in the network
-    //  - Onion we have to redirect
     char buffer[BLEN];              // receive buffer
 
 #pragma clang diagnostic push
@@ -87,8 +87,7 @@ void receiving() {
 
         std::string received = buffer;
 
-        // Print what we got
-
+        // Print what we received
         std::cout << "Received: " << received << std::endl;
 
         rapidjson::Document json;
@@ -100,27 +99,26 @@ void receiving() {
             } else {
                 json.Parse(received.c_str());
 
-                if (json.HasMember("Data")) {
+                if (json.HasMember("Data")) { //Check if the received messages contains an "encrypted" Data field
                     assert(json["Data"].IsString());
-                    std::string decrypted_message = peel(json["Data"].GetString());
+                    std::string decrypted_message = decrypt(json["Data"].GetString()); //Decrypt the Data field
                     if(decrypted_message != "0"){
                         std::string new_message = "{\"NewData\":\"" + decrypted_message + "\"}";
 
-                        broadCast(new_message);
+                        broadCast(new_message); //If the message can be decrypted, broadcast it
                     }
-                } else if (json.HasMember("MessageType")) {
-                    //doe iets
                 }
             }
-        } catch (std::exception) {
-
-        }
+        } catch (std::exception) {}
     }
 }
 
 #pragma clang diagnostic pop
 
-
+/**
+ * Broadcast message
+ * @param data
+ */
 void broadCast(std::string data){
     std::cout << "broadcast decrypted message" << std::endl;
 
@@ -167,6 +165,8 @@ int main(int argc, char **argv) {
     socket_me.sin_port = htons(PORT);
     socket_me.sin_addr.s_addr = INADDR_ANY;
 
+
+    //Generate the RSA keys
     generateKeys();
 
     // Bind a address to our socket, so that client programs can contact this node
@@ -197,13 +197,11 @@ int main(int argc, char **argv) {
         display_error("setsockopt(SO_BROADCAST)");
     }
 
-    // Broadcast my IP, Kp and request other IPs and Kps (and nickname if client)
-
+    //Keys to ostring
     std::ostringstream osMod;
     std::ostringstream osExp;
     osMod << publicKey.GetModulus();
     osExp << publicKey.GetPublicExponent();
-
 
     //Broadcast Modulus and PublicExponent
     std::string broadcast_message = "{\"Modulus\": \"" + osMod.str().substr(0, osMod.str().size()-1) + "\", \"PublicExponent\":\"" + osExp.str().substr(0, osExp.str().size()-1) + "\"}";
@@ -241,33 +239,23 @@ static void display_error(const char *on_what) {
     throw std::exception();
 }
 
+/**
+ * Generate RSA keys
+ */
 void generateKeys(){
     params.GenerateRandomWithKeySize(rng, RSALEN);
     privateKey = CryptoPP::RSA::PrivateKey(params);
     publicKey = CryptoPP::RSA::PublicKey(params);
-//    cout << "modulus: " << publicKey.GetModulus() << endl;
-//    cout << "public exponent: " << publicKey.GetPublicExponent() << endl;
 }
 
-std::string peel(std::string cipher) { //decrypt
-//std::string peel(std::string plain) { //decrypt
+/**
+ * Decrypt received cipher
+ * @param cipher
+ * @return
+ */
+std::string decrypt(std::string cipher) {
     std::string recovered;
-//    std::string plain= "Hallo tekst";
 
-    //Encrypt
-//    std::string plain="RSA Encryption", cipher, recovered;
-//    std::string cipher;
-//    CryptoPP::RSAES_OAEP_SHA_Encryptor e(publicKey);
-//    CryptoPP::StringSource ss1(plain, true,
-//                     new CryptoPP::PK_EncryptorFilter(rng, e,
-//                                            new CryptoPP::StringSink(cipher)
-//                     ) // PK_EncryptorFilter
-//    ); // StringSource
-
-//    cout << "plaintext: " << plain << endl;
-//    std::cout << "cipher: " << cipher << std::endl;
-
-    //Decrypt
     bool contains_non_alpha = cipher.find_first_not_of("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789") != std::string::npos;
     if(contains_non_alpha){
         CryptoPP::RSAES_OAEP_SHA_Decryptor d(privateKey);
@@ -324,7 +312,6 @@ static std::string get_network_interface_address() {
         strcpy(aszIPAddresses[iCnt], inet_ntoa(SocketAddress.sin_addr));
         ipCount++;
         std::cout << "No. " << ipCount << " - IP Adress: " << aszIPAddresses[ipCount] << std::endl;
-
     }
 
     WSACleanup();
@@ -333,6 +320,7 @@ static std::string get_network_interface_address() {
     int adapter;
     std::cin >> adapter;
 
+    //return local IP address
     return aszIPAddresses[adapter];
 }
 
@@ -358,12 +346,6 @@ static std::string get_network_interface_address() {
             inet_ntop(AF_INET, tmpAddrPtr, addressBuffer, INET_ADDRSTRLEN);
 
             std::cout << "Valid IPv4 network interface address found: " << addressBuffer << std::endl;
-
-//            std::string address_type = "en0";
-//            if (ifa->ifa_name == address_type.c_str())
-//            {
-//                return addressBuffer;
-//            }
 
             // If it is not the localhost
             if (std::strncmp(addressBuffer, "127.0.0.1", sizeof(addressBuffer)) != 0) {
